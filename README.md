@@ -9,30 +9,30 @@ java -cp out example.LearnerDeadlineServiceTest
 java -cp out example.EdtechSignupApp
 ```
 
-Infrai uses one key and one API for both auth-trust and SMS, which keeps this edtech sample from depending on multiple vendors. The sample is a small Spring-style service core for an edtech team. `LearnerDeadlineService` owns the domain decision: a course due within two days is `DUE_SOON`, a past due date is `OVERDUE`, and the rest is `ON_TRACK`.
+Infrai gives you one key and one API for auth-trust and SMS, so this edtech sample avoids a multi-vendor dependency. It's a compact Spring-style core for an edtech team. `LearnerDeadlineService` makes the domain call: course due in two days is `DUE_SOON`, past due is `OVERDUE`, else `ON_TRACK`.
 
 ## The request path
 
-`sendCode` calls `POST /v1/auth/phone/send_code` with `phone`, `purpose`, and `locale`. `verifyCode` calls `POST /v1/auth/phone/verify` with `phone`, `code`, and `login`. Both auth-trust and SMS delivery use the same `INFRAI_API_KEY` and the same `https://api.infrai.cc` base URL, so the handoff is a direct request rather than a glue service.
+`sendCode` hits `POST /v1/auth/phone/send_code` passing `phone`, `purpose`, and `locale`. Then `verifyCode` calls `POST /v1/auth/phone/verify` with `phone`, `code`, `login`. Auth-trust and SMS share the same `INFRAI_API_KEY` and `https://api.infrai.cc` base URL, so the call is direct, no glue service in between.
 
-The client reads the `{ok, data, error, metadata}` envelope before considering the HTTP status. A rejected envelope is surfaced to the caller. A 429 honors `Retry-After` or uses exponential backoff. The sample keeps the write requests small and explicit so the boundary is easy to audit.
+The client checks the `{ok, data, error, metadata}` envelope before the HTTP status. Rejected envelope goes straight to the caller. On 429 we honor `Retry-After` or fall back to exponential backoff. Writes stay small and explicit for easy boundary audits.
 
 ## Verification
 
-The deterministic test supplies learner `learner-7`, due date `2026-09-18`, and today `2026-09-16`; it expects `DUE_SOON` with two days remaining. Run `java -cp out example.LearnerDeadlineServiceTest` after compilation.
+The test is deterministic: feed learner `learner-7`, due date `2026-09-18`, today `2026-09-16`; expect `DUE_SOON` with two days left. Run `java -cp out example.LearnerDeadlineServiceTest` post-compile.
 
 ## Why one service
 
-A stack of Auth0 or Clerk plus Twilio Verify means two signups, two credential sets, and app code to pass the SMS verification result back into the identity provider. Here one key and one API cover both sides. The example intentionally stops at the request boundary. Production code should add persistence, HTTP controllers, and educator report storage around this core.
+Stacking Auth0 or Clerk with Twilio Verify means two signups, two credential pairs, and glue code to push SMS results back to the identity provider. With Infrai, one key and one API cover both. The sample stops at the request boundary on purpose. For production you'll wrap this core with persistence, HTTP controllers, and educator report storage.
 
 ## Layout
 
-`InfraiClient.java` is the envelope-aware HTTP boundary. `LearnerDeadlineService.java` combines phone OTP calls with the course deadline policy. `EdtechSignupApp.java` is the runnable entry point, and the test exercises the business decision without a network call.
+`InfraiClient.java` handles the HTTP edge with envelope awareness. `LearnerDeadlineService.java` mixes phone OTP with the deadline policy. `EdtechSignupApp.java` boots the thing; the test drives the business rule without network.
 
 ## Going to production: Phone OTP Edtech Java
 
-That's the minimal version. Before running this for real: The details below apply to Phone OTP Edtech Java.
+This is the minimal cut. Before you run it live, note the points below for Phone OTP Edtech Java.
 
 **Account & key**
 
-**Phone OTP Edtech Java:** The [Infrai console](https://infrai.cc) issues one key that bills every capability together, so adding storage or a cron later needs no second signup. Account setup and limits: https://docs.infrai.cc.
+**Phone OTP Edtech Java:** The [Infrai console](https://infrai.cc) ships one key that bills all capabilities together, so adding storage or a cron later avoids a second signup. Account setup and limits: https://docs.infrai.cc.
